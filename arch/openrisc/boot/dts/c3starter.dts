@@ -6,7 +6,7 @@
 	interrupt-parent = <&pic>;
 
 	chosen {
-		bootargs = "console=uart,mmio,0x90000000,115200";
+		bootargs = "console=uart,mmio,0x90000000,115200,loglevel=8";
 	};
 
 	memory@0 {
@@ -54,6 +54,21 @@
 			spi-max-frequency = <25000000>;
 		};
 	};
+
+	spi1: spi1@b1000000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "opencores,spi-simple";
+		reg = <0xb1000000 0x5>;
+
+		enc28j60@0 {
+			compatible = "microchip,enc28j60";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+			interrupts = <4>;
+		};
+	};
+
 
 	gpio0: gpio@91000000 {
 		compatible = "opencores,jbtrivial";
