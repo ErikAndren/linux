@@ -216,18 +216,19 @@ ocspi_write_read_batch(struct spi_device *spi,
 	  }
 	}
 
-	if (ocspi_wait_till_ready(ocspi) < 0) {
-		dev_err(&spi->dev, "TXS timed out\n");
-		return -1;
-	}
-
 	for (i = 0; i < batch; i++) {
-	  if (rx_buf && *rx_buf) {
-	    *(*rx_buf)++ = ocspi_read(ocspi, OCSPI_REG_SPDR);
-	  } else {
-	    /* Empty read to empty FIFO */
-	    ocspi_read(ocspi, OCSPI_REG_SPDR);
-	  }
+		/* Must poll each entry to handle real slow transactions */
+		if (ocspi_wait_till_ready(ocspi) < 0) {
+			dev_err(&spi->dev, "TXS timed out\n");
+			return -1;
+		}
+
+		if (rx_buf && *rx_buf) {
+			*(*rx_buf)++ = ocspi_read(ocspi, OCSPI_REG_SPDR);
+		} else {
+			/* Empty read to empty FIFO */
+			ocspi_read(ocspi, OCSPI_REG_SPDR);
+		}
 	}
 
 	return 2;
