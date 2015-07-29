@@ -57,6 +57,8 @@ struct ocspi {
 	void __iomem		*base;
 	unsigned int		max_speed;
 	unsigned int		min_speed;
+	u8                      spcr;
+	u8                      sper;
 };
 
 static inline u8
@@ -158,14 +160,21 @@ ocspi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if ((t != NULL) && t->bits_per_word)
 		bits_per_word = t->bits_per_word;
 
-	spcr = ocspi_read(ocspi, OCSPI_REG_SPCR);
-	sper = ocspi_read(ocspi, OCSPI_REG_SPER);
+	spcr = ocspi->spcr;
+	sper = ocspi->sper;
 
 	ocspi_set_baudrate_bits(&spcr, &sper, speed);
 	ocspi_set_mode_bits(&spcr, spi->mode);
 
-	ocspi_write(ocspi, OCSPI_REG_SPCR, spcr);
-	ocspi_write(ocspi, OCSPI_REG_SPER, sper);
+	if (spcr != ocspi->spcr) {
+		ocspi_write(ocspi, OCSPI_REG_SPCR, spcr);
+		ocspi->spcr = spcr;
+	}
+
+	if (sper != ocspi->sper) {
+		ocspi_write(ocspi, OCSPI_REG_SPER, sper);
+		ocspi->sper = sper;
+	}
 
 	return ocspi_set_transfer_size(ocspi, bits_per_word);
 }
@@ -363,8 +372,11 @@ static int ocspi_reset(struct ocspi *ocspi)
 
 	/* Disable controller */
 	ocspi_write(ocspi, OCSPI_REG_SPCR, OCSPI_SPCR_MSTR);
+
 	/* Enable controller */
 	ocspi_write(ocspi, OCSPI_REG_SPCR, OCSPI_SPCR_SPE | OCSPI_SPCR_MSTR);
+
+	ocspi->spcr = OCSPI_SPCR_SPE | OCSPI_SPCR_MSTR;
 
 	return 0;
 }
