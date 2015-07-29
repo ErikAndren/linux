@@ -251,11 +251,11 @@ ocspi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 		u8 *rx = xfer->rx_buf;
 
 		do {
-		  if (count >= 4) {
-		    if (ocspi_write_read_batch(spi, &tx, &rx, 4) < 0) {
+		  if (count >= OCSPI_FIFO_SIZE) {
+		    if (ocspi_write_read_batch(spi, &tx, &rx, OCSPI_FIFO_SIZE) < 0) {
 		      goto out;
 		    }
-		    count = count - 4;
+		    count = count - OCSPI_FIFO_SIZE;
 		  } else {
 		    if (ocspi_write_read_batch(spi, &tx, &rx, count) < 0) {
 		      goto out;
