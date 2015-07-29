@@ -50,6 +50,8 @@
 #define OCSPI_SPER_ICNT			0xc0
 #define OCSPI_SPER_ESPR			0x03
 
+#define OCSPI_FIFO_SIZE                 4
+
 struct ocspi {
 	struct spi_master	*master;
 	void __iomem		*base;
@@ -192,17 +194,26 @@ ocspi_wait_till_ready(struct ocspi *ocspi)
 }
 
 static inline int
-ocspi_write_read_8bit(struct spi_device *spi,
-			  const u8 **tx_buf, u8 **rx_buf)
+ocspi_write_read_batch(struct spi_device *spi,
+		       const u8 **tx_buf, u8 **rx_buf, const u8 batch)
 {
 	struct ocspi *ocspi;
+	u8 i;
 
 	ocspi = spi_master_get_devdata(spi->master);
 
-	if (tx_buf && *tx_buf) {
-		ocspi_write(ocspi, OCSPI_REG_SPDR, *(*tx_buf)++);
-	} else {
-		ocspi_write(ocspi, OCSPI_REG_SPDR, 0);
+	if (batch > OCSPI_FIFO_SIZE) {
+	  dev_err(&spi->dev, "Batch transaction larger than %d\n", OCSPI_FIFO_SIZE);
+	  return -1;
+	}
+
+	for (i = 0; i < batch; i++) {
+	  if (tx_buf && *tx_buf) {
+	    ocspi_write(ocspi, OCSPI_REG_SPDR, *(*tx_buf)++);
+	  } else {
+	    /* Empty write to trigger FIFO */
+	    ocspi_write(ocspi, OCSPI_REG_SPDR, 0);
+	  }
 	}
 
 	if (ocspi_wait_till_ready(ocspi) < 0) {
@@ -210,14 +221,19 @@ ocspi_write_read_8bit(struct spi_device *spi,
 		return -1;
 	}
 
-	if (rx_buf && *rx_buf) {
-		*(*rx_buf)++ = ocspi_read(ocspi, OCSPI_REG_SPDR);
-	} else {
-		ocspi_read(ocspi, OCSPI_REG_SPDR);
+	for (i = 0; i < batch; i++) {
+	  if (rx_buf && *rx_buf) {
+	    *(*rx_buf)++ = ocspi_read(ocspi, OCSPI_REG_SPDR);
+	  } else {
+	    /* Empty read to empty FIFO */
+	    ocspi_read(ocspi, OCSPI_REG_SPDR);
+	  }
 	}
 
-	return 1;
+	return 2;
 }
+
+
 
 static unsigned int
 ocspi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
@@ -235,9 +251,17 @@ ocspi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 		u8 *rx = xfer->rx_buf;
 
 		do {
-			if (ocspi_write_read_8bit(spi, &tx, &rx) < 0)
-				goto out;
-			count--;
+		  if (count >= 4) {
+		    if (ocspi_write_read_batch(spi, &tx, &rx, 4) < 0) {
+		      goto out;
+		    }
+		    count = count - 4;
+		  } else {
+		    if (ocspi_write_read_batch(spi, &tx, &rx, count) < 0) {
+		      goto out;
+		    }
+		    count = 0;
+		  }
 		} while (count);
 	}
 
