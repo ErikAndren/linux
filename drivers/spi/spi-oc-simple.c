@@ -187,7 +187,7 @@ ocspi_wait_till_ready(struct ocspi *ocspi)
 		if (!(reg & OCSPI_SPSR_RFEMPTY))
 			return 1;
 		else
-			usleep_range(1,1);
+			udelay(1);
 	}
 
 	return -1;
