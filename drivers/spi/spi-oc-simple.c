@@ -231,7 +231,7 @@ ocspi_write_read_batch(struct spi_device *spi,
 		}
 	}
 
-	return 2;
+	return batch;
 }
 
 
