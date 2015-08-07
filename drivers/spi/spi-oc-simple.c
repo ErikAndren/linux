@@ -226,12 +226,8 @@ ocspi_write_read_batch(struct spi_device *spi,
 	for (i = 0; i < batch; i++) {
 	  if (tx_buf && *tx_buf) {
 	    if (batch == 4) {
-              ocspi_batch_write(ocspi, *tx_buf);
-	      //*(*tx_buf) += 4;
-	      *(*tx_buf)++;
-	      *(*tx_buf)++;
-	      *(*tx_buf)++;
-	      *(*tx_buf)++;
+	      ocspi_batch_write(ocspi, *tx_buf);
+	      (*tx_buf) = (*tx_buf) + 4;
 	      break;
 	    } else {
 	      ocspi_write(ocspi, OCSPI_REG_SPDR, *(*tx_buf)++);
