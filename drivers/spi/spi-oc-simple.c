@@ -32,6 +32,7 @@
 #define OCSPI_REG_SPDR			0x2
 #define OCSPI_REG_SPER			0x3
 #define OCSPI_REG_SSR			0x4
+#define OCSPI_REG_BURST_WR              0x8
 
 #define OCSPI_SPCR_SPIE			(1 << 7)
 #define OCSPI_SPCR_SPE			(1 << 6)
@@ -70,6 +71,12 @@ static inline void
 ocspi_write(struct ocspi* ocspi, unsigned int reg, u8 value) {
 	iowrite8(value, ocspi->base + reg);
 }
+
+static inline void
+ocspi_batch_write(struct ocspi *ocspi, const u8 *value) {
+	iowrite32( (value[3] << 24) | (value[2] << 16) | (value[1] << 8) | value[0], ocspi->base + OCSPI_REG_BURST_WR);
+}
+
 
 static int
 ocspi_set_transfer_size(struct ocspi *ocspi, unsigned int size)
@@ -218,7 +225,17 @@ ocspi_write_read_batch(struct spi_device *spi,
 
 	for (i = 0; i < batch; i++) {
 	  if (tx_buf && *tx_buf) {
-	    ocspi_write(ocspi, OCSPI_REG_SPDR, *(*tx_buf)++);
+	    if (batch == 4) {
+              ocspi_batch_write(ocspi, *tx_buf);
+	      //*(*tx_buf) += 4;
+	      *(*tx_buf)++;
+	      *(*tx_buf)++;
+	      *(*tx_buf)++;
+	      *(*tx_buf)++;
+	      break;
+	    } else {
+	      ocspi_write(ocspi, OCSPI_REG_SPDR, *(*tx_buf)++);
+	    }
 	  } else {
 	    /* Empty write to trigger FIFO */
 	    ocspi_write(ocspi, OCSPI_REG_SPDR, 0);
